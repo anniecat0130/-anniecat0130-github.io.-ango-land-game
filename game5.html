@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>芒果地政士事務所：實價登錄大挑戰</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', 'Heiti TC', sans-serif;
+            background-color: #fcefdc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 25px rgba(0,0,0,0.15);
+            position: relative;
+        }
+        /* --- 頭部屬性欄 --- */
+        .header {
+            background: #e67e22;
+            color: white;
+            padding: 15px 10px;
+            display: flex;
+            justify-content: space-around;
+            font-size: 16px;
+            border-bottom: 5px solid #d35400;
+            z-index: 10;
+        }
+        .stat-box { text-align: center; width: 33%; }
+        .stat-label { font-size: 14px; opacity: 0.9; }
+        .stat-value {
+            font-size: 22px;
+            font-weight: bold;
+            color: #fff;
+            display: block;
+            margin-top: 4px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        /* --- 遊戲主畫面 --- */
+        .screen {
+            flex: 1;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            text-align: center;
+            display: none;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .active { display: flex; animation: fadeIn 0.4s; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- 內容文字樣式 --- */
+        h2 { margin: 10px 0 20px 0; color: #d35400; font-size: 28px; line-height: 1.3; }
+        h3 { margin: 5px 0 15px 0; color: #2c3e50; font-size: 22px; font-weight: bold; }
+        
+        .desc { 
+            margin-bottom: 25px; 
+            font-size: 19px;
+            line-height: 1.6; 
+            color: #444; 
+            background: #fff8e1;
+            padding: 15px; 
+            border-radius: 12px; 
+            width: 95%; 
+            border: 2px solid #ffe0b2;
+            box-sizing: border-box;
+        }
+        
+        .npc-img { 
+            width: 90px; height: 90px;
+            background: #ffeaa7; 
+            border-radius: 50%; 
+            margin: 10px 0 15px 0; 
+            line-height: 90px; 
+            font-size: 50px; 
+            border: 4px solid #f39c12; 
+        }
+        
+        /* --- 按鈕區 --- */
+        #choices-container { width: 100%; margin-bottom: 10px; }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 20px 20px; 
+            /* 右邊留多一點空間給印章，避免文字被印章蓋住 */
+            padding-right: 70px; 
+            margin: 12px 0;
+            width: 100%;
+            border-radius: 12px;
+            font-size: 19px; 
+            line-height: 1.4;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 5px #2980b9;
+            position: relative; /* 為了讓印章絕對定位 */
+            text-align: left;
+            font-weight: bold;
+            overflow: hidden; /* 防止印章超出 */
+        }
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 #2980b9;
+        }
+        
+        .btn-correct { background: #27ae60 !important; box-shadow: 0 5px #219150 !important; }
+        .btn-wrong { background: #c0392b !important; box-shadow: 0 5px #a93226 !important; opacity: 0.6; }
+        .btn-disabled { pointer-events: none; }
+
+        .btn-start, .btn-restart {
+            text-align: center;
+            font-size: 24px;
+            background: #e67e22;
+            box-shadow: 0 6px #d35400;
+            padding: 20px;
+            margin-top: 20px;
+            padding-right: 20px; /* 還原 padding */
+        }
+
+        /* --- 蓋章特效 (位置修正) --- */
+        .stamp-seal {
+            position: absolute;
+            /* 移到右側，垂直置中 */
+            right: 15px;
+            top: 50%;
+            width: 80px;
+            height: 45px;
+            margin-top: -22.5px; /* 高度的一半，確保完全垂直置中 */
+            
+            border: 4px solid #c0392b; /* 印泥紅 */
+            color: #c0392b;
+            font-size: 24px;
+            font-weight: 900;
+            line-height: 40px;
+            text-align: center;
+            border-radius: 8px;
+            
+            /* 移除白色背景，改為透明，避免遮擋到底下顏色 */
+            background: transparent;
+            
+            transform: rotate(-20deg) scale(2); /* 初始放大 */
+            opacity: 0;
+            z-index: 100;
+            font-family: "KaiTi", "BiauKai", serif; 
+            pointer-events: none;
+            
+            /* 蓋章動畫 */
+            animation: stampIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes stampIn {
+            to { opacity: 1; transform: rotate(-20deg) scale(1); }
+        }
+        
+        /* --- 錯誤回饋區 --- */
+        #feedback-box {
+            width: 100%;
+            min-height: 60px;
+            margin-top: 10px;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            display: none;
+            box-sizing: border-box;
+            animation: popIn 0.3s;
+        }
+        .feedback-error {
+            background-color: #fadbd8;
+            color: #c0392b;
+            border: 2px solid #c0392b;
+        }
+        .feedback-success {
+            background-color: #d5f5e3;
+            color: #27ae60;
+            border: 2px solid #27ae60;
+        }
+        
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* --- 浮動文字特效 --- */
+        .floating-text {
+            position: absolute;
+            font-weight: bold;
+            font-size: 32px;
+            text-shadow: 2px 2px 0 #fff, -1px -1px 0 #fff;
+            animation: floatUp 1.5s ease-out forwards;
+            pointer-events: none;
+            z-index: 100;
+            width: 100%;
+            text-align: center;
+            left: 0;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-100px) scale(1.2); opacity: 0; }
+        }
+
+        /* --- 進度條 --- */
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #eee;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #e67e22;
+            width: 0%;
+            border-radius: 5px;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- 屬性顯示 -->
+    <div class="header">
+        <div class="stat-box"><div class="stat-label">專業度</div><span id="stat-pro" class="stat-value">10</span></div>
+        <div class="stat-box"><div class="stat-label">壓力值</div><span id="stat-stress" class="stat-value">0</span></div>
+        <div class="stat-box"><div class="stat-label">進度</div><span id="stat-round" class="stat-value">1/10</span></div>
+    </div>
+
+    <!-- 開始畫面 -->
+    <div id="screen-start" class="screen active">
+        <div class="npc-img">🥭</div>
+        <h2>芒果地政士事務所</h2>
+        <p style="color:#e67e22; font-weight:bold; font-size:18px;">★ 實價登錄新制特訓班 ★</p>
+        <p class="desc">
+            歡迎來到「芒果地政士事務所」！<br><br>
+            老闆去玉井買芒果了，留下一堆案件給你處理。<br><br>
+            請依照<b>實價登錄 QA 新制</b>，解決客戶的疑難雜症。小心作答，<b>系統會給你時間閱讀正確解答</b>，不要急著按掉喔！
+        </p>
+        <button class="btn btn-start" onclick="startGame()">開始上班</button>
+    </div>
+
+    <!-- 遊戲進行畫面 -->
+    <div id="screen-game" class="screen">
+        <div class="npc-img" id="npc-avatar">👤</div>
+        <h3 id="q-title">事件標題</h3>
+        <p class="desc" id="q-desc">事件描述...</p>
+        
+        <div id="choices-container">
+            <!-- 按鈕由 JS 生成 -->
+        </div>
+
+        <!-- 正確答案顯示區 -->
+        <div id="feedback-box"></div>
+
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+    </div>
+
+    <!-- 結算畫面 -->
+    <div id="screen-result" class="screen">
+        <div class="npc-img" id="result-avatar">🏆</div>
+        <h2 id="result-title">結局標題</h2>
+        <p class="desc" id="result-desc">結局描述</p>
+        <p style="font-size:20px; color:#d35400; font-weight:bold; margin-top:0;" id="result-score">最終得分：0</p>
+        <button class="btn btn-restart" onclick="location.reload()">重新挑戰</button>
+    </div>
+</div>
+
+<script>
+    // 遊戲狀態
+    let stats = { pro: 10, stress: 0, round: 1 };
+    const maxRounds = 10;
+    let currentCorrectChoice = null;
+
+    // --- 題庫資料 ---
+    const questionsPool = [
+        {
+            title: "Q1. 申報方式的抉擇",
+            desc: "老投資客拿著 A3 紙張進來：「年輕人，手寫比較快吧？我們直接用手寫 A3 送件好不好？」(QA1)",
+            avatar: "👴",
+            correct: { text: "建議用 A2 (電腦) 申報，系統能檢核錯誤！", effect: {pro: 10, stress: -5}, msg: "沒錯！A2 系統有檢核機制，尤其是價格單位顯示，能減少錯誤。" },
+            wrongs: [
+                { text: "好喔，手寫真的比較快，我們用 A3。", effect: {pro: -10, stress: 10}, msg: "哎呀！手寫容易漏填或邏輯不符，被老闆念了一頓。" },
+                { text: "現在規定只能用 A4 紙手寫。", effect: {pro: -5, stress: 5}, msg: "亂講，沒有這種規定啦！" },
+                { text: "我幫你用 XML 原始碼手打。", effect: {pro: -20, stress: 20}, msg: "別鬧了，客戶看不懂你在幹嘛。" }
+            ]
+        },
+        {
+            title: "Q2. 未成年的簽名",
+            desc: "媽媽帶 5 歲兒子來賣地：「這是我兒子的地，要抓他的手簽名嗎？」(QA5)",
+            avatar: "👩",
+            correct: { text: "未滿 7 歲，由您(法定代理人)簽章即可。", effect: {pro: 10, stress: 0}, msg: "專業！未滿 7 歲由法定代理人代為處理。" },
+            wrongs: [
+                { text: "對，他是所有權人，一定要本人簽。", effect: {pro: -10, stress: 5}, msg: "錯囉！5 歲簽名不具效力，會被補正。" },
+                { text: "不用簽名，叫他在上面畫一隻烏龜就好。", effect: {pro: -15, stress: 5}, msg: "櫃台人員把你趕了出去..." },
+                { text: "等他滿 18 歲再來申報。", effect: {pro: -20, stress: 10}, msg: "那時候早就逾期受罰了！" }
+            ]
+        },
+        {
+            title: "Q3. 消失的決標日",
+            desc: "標售案的產權證明書上「沒有寫決標日」，交易日期填哪天？(QA3)",
+            avatar: "🏢",
+            correct: { text: "填「產權移轉證明書核發日期」", effect: {pro: 10, stress: -5}, msg: "正解！無決標日則以核發日為準。" },
+            wrongs: [
+                { text: "自己隨便選一天良辰吉日。", effect: {pro: -20, stress: 15}, msg: "被退件！公務員表示不能亂填。" },
+                { text: "填今天送件的日期。", effect: {pro: -10, stress: 10}, msg: "錯誤，交易日跟送件日不一樣喔。" },
+                { text: "打電話問市長。", effect: {pro: -5, stress: 5}, msg: "市長正在吃芒果，沒空理你。" }
+            ]
+        },
+        {
+            title: "Q4. 車位價格之謎",
+            desc: "大樓含車位總價 1000 萬，無法拆分個別車位價格，車位單價欄位怎麼辦？(QA13)",
+            avatar: "🚗",
+            correct: { text: "空白免填 (請勿填 0)", effect: {pro: 10, stress: -5}, msg: "正確！無法拆分就留白，填 0 會被擋。" },
+            wrongs: [
+                { text: "填「0」元。", effect: {pro: -15, stress: 15}, msg: "大錯特錯！系統邏輯錯誤，車位不可能不用錢。" },
+                { text: "大概估個 100 萬填進去。", effect: {pro: -10, stress: 5}, msg: "實價登錄講求真實，不能用猜的！" },
+                { text: "寫「贈送」兩個字。", effect: {pro: -10, stress: 5}, msg: "欄位只能填數字啦..." }
+            ]
+        },
+        {
+            title: "Q5. 罕見字亂碼",
+            desc: "客戶名字有冷僻字，電腦打出來變「??」，印出來怎麼辦？(QA29)",
+            avatar: "🔡",
+            correct: { text: "劃掉亂碼，手寫正字並蓋章。", effect: {pro: 10, stress: 0}, msg: "很好！這是標準處理流程。" },
+            wrongs: [
+                { text: "系統打不出來就不能申報，請他改名。", effect: {pro: -30, stress: 20}, msg: "客戶氣到要客訴你！太沒禮貌了。" },
+                { text: "用立可白塗掉就好，不用蓋章。", effect: {pro: -10, stress: 5}, msg: "塗改處必須蓋章確認才行喔！" },
+                { text: "自己造字上傳到內政部系統。", effect: {pro: -5, stress: 20}, msg: "想太多，你沒這個權限。" }
+            ]
+        },
+        {
+            title: "Q6. 委任關係的奧義",
+            desc: "你要幫客戶全權處理申報與更正，申報書的「委任關係」要選哪個？(QA10)",
+            avatar: "📜",
+            correct: { text: "勾選「委任關係 1」(兼具委任代理人功能)", effect: {pro: 15, stress: -5}, msg: "正確！這樣你才有權限幫客戶更正。" },
+            wrongs: [
+                { text: "勾選「委任關係 2」", effect: {pro: -5, stress: 5}, msg: "錯了，關係 2 權限較小，無法更正喔。" },
+                { text: "兩個都勾，雙重保障。", effect: {pro: -10, stress: 5}, msg: "系統會錯亂，只能選一個！" },
+                { text: "不用勾，我有代書證。", effect: {pro: -10, stress: 10}, msg: "表格沒填就是退件！不要鐵齒。" }
+            ]
+        },
+        {
+            title: "Q7. 僅土地交易",
+            desc: "這次只賣土地，沒有房子。申報書上的「有無電梯」、「管理組織」要填嗎？(QA12)",
+            avatar: "🏞️",
+            correct: { text: "不用填，那是建物資訊。", effect: {pro: 10, stress: 0}, msg: "觀念正確！純土地交易免填建物欄位。" },
+            wrongs: [
+                { text: "要填「無」，比較保險。", effect: {pro: -5, stress: 5}, msg: "不用填啦，多此一舉。" },
+                { text: "全部勾選「有」，增加價值。", effect: {pro: -20, stress: 10}, msg: "這是申報不實！會被罰錢的！" },
+                { text: "手繪一棟房子在旁邊。", effect: {pro: -5, stress: 5}, msg: "不要在申報書上塗鴉。" }
+            ]
+        },
+        {
+            title: "Q8. 內含費用的陷阱",
+            desc: "買賣總價裡包含了「裝潢費」和「仲介費」，要怎麼申報？(QA14)",
+            avatar: "💰",
+            correct: { text: "填總價，並在備註欄勾選「內含...費用」", effect: {pro: 10, stress: -5}, msg: "正確！必須完整揭露內含的費用。" },
+            wrongs: [
+                { text: "自己把費用扣掉，只填淨價。", effect: {pro: -15, stress: 10}, msg: "錯！要依契約總價填寫，再備註說明。" },
+                { text: "故意灌水把價格寫更高。", effect: {pro: -50, stress: 50}, msg: "這是違法的！你被吊銷執照了。" },
+                { text: "不用備註，沒人會發現。", effect: {pro: -20, stress: 10}, msg: "隱匿資訊，小心被查到受罰。" }
+            ]
+        },
+        {
+            title: "Q9. 公家機關的印章",
+            desc: "客戶買了政府標售的房子，需要政府機關(賣方)一起來蓋章申報嗎？(QA22)",
+            avatar: "🏛️",
+            correct: { text: "通常不用，憑證明文件買方可單獨申報。", effect: {pro: 10, stress: 0}, msg: "正確！政府機關通常免蓋章。" },
+            wrongs: [
+                { text: "一定要，叫市長出來蓋章。", effect: {pro: -10, stress: 10}, msg: "別鬧了，這是不可能的。" },
+                { text: "政府的案件不用實價登錄。", effect: {pro: -20, stress: 0}, msg: "錯！還是要申報，不能偷懶。" },
+                { text: "要請總統蓋章。", effect: {pro: -10, stress: 10}, msg: "太誇張囉。" }
+            ]
+        },
+        {
+            title: "Q10. 房地分件辦理",
+            desc: "土地和建物分兩件登記，土地申報書的價格要填多少？(QA18)",
+            avatar: "📑",
+            correct: { text: "土地價格填「0」，建物填總價。", effect: {pro: 15, stress: -5}, msg: "高難度題！房地分件時，土地價格填0，建物填總價(含土地)。" },
+            wrongs: [
+                { text: "土地跟建物各填一半價格。", effect: {pro: -10, stress: 10}, msg: "錯！這樣總價會重複計算。" },
+                { text: "兩邊都填總價。", effect: {pro: -10, stress: 10}, msg: "錯！這樣價格會變兩倍。" },
+                { text: "看心情隨便分。", effect: {pro: -15, stress: 15}, msg: "不行！這有標準規定的。" }
+            ]
+        }
+    ];
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    function updateStats() {
+        document.getElementById('stat-pro').innerText = stats.pro;
+        document.getElementById('stat-stress').innerText = stats.stress;
+        document.getElementById('stat-round').innerText = stats.round + "/" + maxRounds;
+        let pct = ((stats.round - 1) / maxRounds) * 100;
+        document.getElementById('progress-fill').style.width = pct + "%";
+    }
+
+    function showFloatingText(text, color) {
+        const el = document.createElement('div');
+        el.className = 'floating-text';
+        el.innerText = text;
+        el.style.color = color;
+        document.getElementById('game-container').appendChild(el);
+        setTimeout(() => el.remove(), 1500);
+    }
+
+    function startGame() {
+        document.getElementById('screen-start').classList.remove('active');
+        document.getElementById('screen-game').classList.add('active');
+        stats = { pro: 10, stress: 0, round: 1 };
+        updateStats();
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        if (stats.round > maxRounds) {
+            endGame();
+            return;
+        }
+
+        const feedbackBox = document.getElementById('feedback-box');
+        feedbackBox.style.display = 'none';
+        feedbackBox.innerHTML = '';
+        
+        const q = questionsPool[stats.round - 1];
+        currentCorrectChoice = q.correct;
+
+        document.getElementById('q-title').innerText = q.title;
+        document.getElementById('q-desc').innerText = q.desc;
+        document.getElementById('npc-avatar').innerText = q.avatar;
+        
+        const cContainer = document.getElementById('choices-container');
+        cContainer.innerHTML = '';
+        
+        let currentChoices = [];
+        let correctChoice = JSON.parse(JSON.stringify(q.correct));
+        correctChoice.isCorrect = true;
+        currentChoices.push(correctChoice);
+        
+        let shuffledWrongs = shuffleArray([...q.wrongs]);
+        let selectedWrongs = shuffledWrongs.slice(0, 2);
+        selectedWrongs.forEach(w => {
+            w.isCorrect = false;
+            currentChoices.push(w);
+        });
+        
+        currentChoices = shuffleArray(currentChoices);
+        
+        currentChoices.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.innerText = c.text;
+            btn.dataset.isCorrect = c.isCorrect;
+            btn.onclick = (e) => makeChoice(c, e.currentTarget);
+            cContainer.appendChild(btn);
+        });
+    }
+
+    function makeChoice(choice, btnElement) {
+        // 1. 鎖定按鈕
+        const allBtns = document.querySelectorAll('.btn');
+        let correctBtnElement = null;
+        
+        allBtns.forEach(btn => {
+            btn.classList.add('btn-disabled');
+            if(btn.dataset.isCorrect === "true") {
+                btn.classList.add('btn-correct');
+                correctBtnElement = btn;
+            }
+        });
+
+        // 2. 顯示蓋章特效 (位置在右側)
+        if(correctBtnElement) {
+            const stamp = document.createElement('div');
+            stamp.className = 'stamp-seal';
+            stamp.innerText = '正解';
+            correctBtnElement.appendChild(stamp);
+        }
+
+        // 3. 處理答錯樣式
+        if (!choice.isCorrect) {
+            btnElement.classList.add('btn-wrong');
+        }
+
+        // 4. 更新數值
+        stats.pro += choice.effect.pro;
+        stats.stress += choice.effect.stress;
+        if(stats.pro < 0) stats.pro = 0;
+        
+        const color = choice.effect.pro > 0 ? '#27ae60' : '#e74c3c';
+        const sign = choice.effect.pro > 0 ? '+' : '';
+        showFloatingText(`專業 ${sign}${choice.effect.pro}`, color);
+        updateStats();
+
+        // 5. 顯示底部詳細回饋
+        const feedbackBox = document.getElementById('feedback-box');
+        feedbackBox.style.display = 'block';
+        
+        if (choice.isCorrect) {
+            feedbackBox.className = 'feedback-success';
+            feedbackBox.innerHTML = "✅ 恭喜答對！";
+        } else {
+            feedbackBox.className = 'feedback-error';
+            feedbackBox.innerHTML = "❌ 答錯了！<br><span style='font-size:16px; font-weight:normal; display:block; margin-top:5px;'>正確答案是：<br>" + currentCorrectChoice.text + "</span>";
+        }
+
+        // 6. 計算閱讀時間
+        let totalTextLength = choice.msg.length;
+        if(!choice.isCorrect) {
+            totalTextLength += currentCorrectChoice.text.length;
+        }
+        let readingDelay = 2000 + (totalTextLength * 150);
+        if(readingDelay > 6000) readingDelay = 6000;
+        if(readingDelay < 2500) readingDelay = 2500;
+
+        // 7. 彈出趣味視窗
+        setTimeout(() => {
+            alert(choice.msg);
+            setTimeout(() => {
+                stats.round++;
+                loadQuestion();
+            }, readingDelay);
+        }, 300);
+    }
+
+    function endGame() {
+        document.getElementById('screen-game').classList.remove('active');
+        document.getElementById('screen-result').classList.add('active');
+        
+        const rTitle = document.getElementById('result-title');
+        const rDesc = document.getElementById('result-desc');
+        const rAvatar = document.getElementById('result-avatar');
+        const rScore = document.getElementById('result-score');
+
+        rScore.innerText = `最終專業度：${stats.pro} | 壓力值：${stats.stress}`;
+
+        if (stats.pro >= 120) {
+            rTitle.innerText = "結局：芒果地政天王";
+            rDesc.innerText = "太神了！你對實價登錄的了解比玉井芒果還熟！老闆決定送你一整籃頂級愛文芒果！";
+            rAvatar.innerText = "🥭";
+        } else if (stats.pro >= 80) {
+            rTitle.innerText = "結局：王牌代書";
+            rDesc.innerText = "表現優異！雖然偶爾會被小問題困擾，但你是事務所不可或缺的戰力。";
+            rAvatar.innerText = "🌟";
+        } else if (stats.pro >= 40) {
+            rTitle.innerText = "結局：迷糊小助理";
+            // 修正結局文字
+            rDesc.innerText = "勉強及格，但常被退件。老闆要你加強專業，避免讓公司賠錢。";
+            rAvatar.innerText = "📖";
+        } else {
+            rTitle.innerText = "結局：回家種芒果";
+            rDesc.innerText = "錯誤百出，客戶都跑光了。老闆嘆氣說：「你還是回鄉下幫忙採收芒果吧...」";
+            rAvatar.innerText = "🚜";
+        }
+    }
+</script>
+
+</body>
+</html>
